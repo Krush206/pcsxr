@@ -68,6 +68,7 @@ __private_extern__ char* PLUGLOC(char* toloc);
 #include <fcntl.h>
 #include <sys/ioctl.h>
 #include <sys/stat.h>
+#include <sys/wait.h>
 #include <unistd.h>
 #include <pthread.h>
 #include <time.h>
