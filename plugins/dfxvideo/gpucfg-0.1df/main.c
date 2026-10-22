@@ -61,41 +61,41 @@ void on_fullscreen_toggled(GtkWidget *widget, gpointer user_data)
 {
 	GtkWidget *check, *resCombo2;
 
-	check = gtk_builder_get_object(builder, "checkFullscreen");
-	resCombo2 = gtk_builder_get_object(builder, "resCombo2");
+	check = GTK_WIDGET(gtk_builder_get_object(builder, "checkFullscreen"));
+	resCombo2 = GTK_WIDGET(gtk_builder_get_object(builder, "resCombo2"));
 
-	gtk_widget_set_sensitive(resCombo2, !gtk_toggle_button_get_active(check));
+	gtk_widget_set_sensitive(resCombo2, !gtk_toggle_button_get_active(GTK_TOGGLE_BUTTON(check)));
 }
 
 void on_use_fixes_toggled(GtkWidget *widget, gpointer user_data)
 {
 	GtkWidget *check, *table_fixes;
-	check = gtk_builder_get_object(builder,"checkUseFixes");
+	check = GTK_WIDGET(gtk_builder_get_object(builder,"checkUseFixes"));
 
-	table_fixes = gtk_builder_get_object(builder,"table_fixes");
+	table_fixes = GTK_WIDGET(gtk_builder_get_object(builder,"table_fixes"));
 
 	/* Set the state of each of the fixes to the value of the use fixes toggle */
 	gtk_container_foreach (GTK_CONTAINER (table_fixes), (GtkCallback) gtk_widget_set_sensitive,
-		(gpointer)gtk_toggle_button_get_active (check));
+		(gpointer)gtk_toggle_button_get_active (GTK_TOGGLE_BUTTON(check)));
 }
 
 void on_fps_toggled(GtkWidget *widget, gpointer user_data)
 {
 	GtkWidget *checkSetFPS, *checkAutoFPSLimit, *entryFPS;
 
-	checkSetFPS = gtk_builder_get_object(builder, "checkSetFPS");
-	checkAutoFPSLimit = gtk_builder_get_object(builder, "checkAutoFPSLimit");
-	entryFPS = gtk_builder_get_object(builder, "entryFPS");
+	checkSetFPS = GTK_WIDGET(gtk_builder_get_object(builder, "checkSetFPS"));
+	checkAutoFPSLimit = GTK_WIDGET(gtk_builder_get_object(builder, "checkAutoFPSLimit"));
+	entryFPS = GTK_WIDGET(gtk_builder_get_object(builder, "entryFPS"));
 
 	gtk_widget_set_sensitive(entryFPS, 
-							 gtk_toggle_button_get_active(checkSetFPS) && 
-							 !gtk_toggle_button_get_active(checkAutoFPSLimit));
-	gtk_widget_set_sensitive(checkAutoFPSLimit, gtk_toggle_button_get_active(checkSetFPS));
+							 gtk_toggle_button_get_active(GTK_TOGGLE_BUTTON(checkSetFPS)) &&
+							 !gtk_toggle_button_get_active(GTK_TOGGLE_BUTTON(checkAutoFPSLimit)));
+	gtk_widget_set_sensitive(checkAutoFPSLimit, gtk_toggle_button_get_active(GTK_TOGGLE_BUTTON(checkSetFPS)));
 }
 
 void OnConfigClose(GtkWidget *widget, gpointer user_data)
 {
-	gtk_widget_destroy(gtk_builder_get_object(builder, "CfgWnd"));
+	gtk_widget_destroy(GTK_WIDGET(gtk_builder_get_object(builder, "CfgWnd")));
 	exit(0);
 }
 
@@ -272,7 +272,7 @@ main (int argc, char *argv[])
 			if(valf>500) valf=500;
 		}
 		sprintf(tempstr,"%.1f",valf);
-		gtk_entry_set_text(gtk_builder_get_object(builder, "entryFPS"),tempstr);
+		gtk_entry_set_text(GTK_ENTRY(gtk_builder_get_object(builder, "entryFPS")),tempstr);
 
 		val=0;
 		if(pB)
@@ -300,27 +300,27 @@ main (int argc, char *argv[])
 
 		if(pB) free(pB);
 
-			widget = gtk_builder_get_object(builder, "CfgWnd");
+			widget = GTK_WIDGET(gtk_builder_get_object(builder, "CfgWnd"));
 			g_signal_connect_data(G_OBJECT(widget), "destroy",
 					G_CALLBACK(SaveConfig), NULL, NULL, 0);
 
-			widget = gtk_builder_get_object(builder, "btn_close");
+			widget = GTK_WIDGET(gtk_builder_get_object(builder, "btn_close"));
 			g_signal_connect_data(G_OBJECT(widget), "clicked",
 					G_CALLBACK(OnConfigClose), NULL, NULL, G_CONNECT_AFTER);
 
-			widget = gtk_builder_get_object(builder, "checkFullscreen");
+			widget = GTK_WIDGET(gtk_builder_get_object(builder, "checkFullscreen"));
 			g_signal_connect_data(G_OBJECT(widget), "clicked",
 					G_CALLBACK(on_fullscreen_toggled), NULL, NULL, G_CONNECT_AFTER);
 
-			widget = gtk_builder_get_object(builder, "checkUseFixes");
+			widget = GTK_WIDGET(gtk_builder_get_object(builder, "checkUseFixes"));
 			g_signal_connect_data(G_OBJECT(widget), "clicked",
 					G_CALLBACK(on_use_fixes_toggled), NULL, NULL, G_CONNECT_AFTER);
 
-			widget = gtk_builder_get_object(builder, "checkSetFPS");
+			widget = GTK_WIDGET(gtk_builder_get_object(builder, "checkSetFPS"));
 			g_signal_connect_data(G_OBJECT(widget), "clicked",
 					G_CALLBACK(on_fps_toggled), NULL, NULL, G_CONNECT_AFTER);
 
-			widget = gtk_builder_get_object(builder, "checkAutoFPSLimit");
+			widget = GTK_WIDGET(gtk_builder_get_object(builder, "checkAutoFPSLimit"));
 			g_signal_connect_data(G_OBJECT(widget), "clicked",
 					G_CALLBACK(on_fps_toggled), NULL, NULL, G_CONNECT_AFTER);
 
@@ -422,7 +422,7 @@ void SaveConfig(GtkWidget *widget, gpointer user_data)
  SetCfgVal(pB,"\nUseFrameSkip",val);
 
  //Framerate stored *10
- val = atof(gtk_entry_get_text(gtk_builder_get_object(builder, "entryFPS"))) * 10;
+ val = atof(gtk_entry_get_text(GTK_ENTRY(gtk_builder_get_object(builder, "entryFPS")))) * 10;
  SetCfgVal(pB,"\nFrameRate",val);
 
  val = gtk_toggle_button_get_active (GTK_TOGGLE_BUTTON (gtk_builder_get_object(builder,"checkUseFixes")));
