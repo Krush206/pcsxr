@@ -108,36 +108,36 @@ long CFGopen() {
 		return 0;
 	}
 
-	MainWindow = gtk_builder_get_object(builder, "dlgStart");
+	MainWindow = GTK_WIDGET(gtk_builder_get_object(builder, "dlgStart"));
 	gtk_window_set_title(GTK_WINDOW(MainWindow), _("NetPlay"));
 
-	widget = gtk_builder_get_object(builder, "btnCopyIP");
+	widget = GTK_WIDGET(gtk_builder_get_object(builder, "btnCopyIP"));
 	g_signal_connect_data(G_OBJECT(widget), "clicked",
 		G_CALLBACK(OnCopyIP), NULL, NULL, G_CONNECT_AFTER);
 
-	widget = gtk_builder_get_object(builder, "tbServerIP");
+	widget = GTK_WIDGET(gtk_builder_get_object(builder, "tbServerIP"));
 	gtk_entry_set_text(GTK_ENTRY(widget), conf.ipAddress);
 
-	widget = gtk_builder_get_object(builder, "tbPort");
+	widget = GTK_WIDGET(gtk_builder_get_object(builder, "tbPort"));
 	sprintf(buf, "%d", conf.PortNum);
 	gtk_entry_set_text(GTK_ENTRY(widget), buf);
 
 	if (conf.PlayerNum == 1) {
-		widget = gtk_builder_get_object(builder, "rbServer");
+		widget = GTK_WIDGET(gtk_builder_get_object(builder, "rbServer"));
 		gtk_toggle_button_set_active(GTK_TOGGLE_BUTTON(widget), TRUE);
 	} else {
-		widget = gtk_builder_get_object(builder, "rbClient");
+		widget = GTK_WIDGET(gtk_builder_get_object(builder, "rbClient"));
 		gtk_toggle_button_set_active(GTK_TOGGLE_BUTTON(widget), TRUE);
 	}
 
 	if (gtk_dialog_run(GTK_DIALOG(MainWindow)) == GTK_RESPONSE_OK) {
-		widget = gtk_builder_get_object(builder, "tbServerIP");
+		widget = GTK_WIDGET(gtk_builder_get_object(builder, "tbServerIP"));
 		strcpy(conf.ipAddress, gtk_entry_get_text(GTK_ENTRY(widget)));
 
-		widget = gtk_builder_get_object(builder, "tbPort");
+		widget = GTK_WIDGET(gtk_builder_get_object(builder, "tbPort"));
 		conf.PortNum = atoi(gtk_entry_get_text(GTK_ENTRY(widget)));
 
-		widget = gtk_builder_get_object(builder, "rbServer");
+		widget = GTK_WIDGET(gtk_builder_get_object(builder, "rbServer"));
 		if (gtk_toggle_button_get_active(GTK_TOGGLE_BUTTON(widget))) {
 			conf.PlayerNum = 1;
 		} else {
