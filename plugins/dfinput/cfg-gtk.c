@@ -607,7 +607,7 @@ static void PopulateDevList() {
 
 		n = SDL_NumJoysticks();
 		for (j = 0; j < n; j++) {
-			sprintf(buf, "%d: %s", j + 1, SDL_JoystickName(j));
+			sprintf(buf, "%d: %s", j + 1, SDL_JoystickNameForIndex(j));
 			gtk_list_store_append(store, &iter);
 			gtk_list_store_set(store, &iter, 0, buf, -1);
 		}
