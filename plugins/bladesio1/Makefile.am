@@ -1,5 +1,5 @@
-bindir = @libdir@/games/psemu/
-libdir = @libdir@/games/psemu/
+bindir = @libdir@/psemu/
+libdir = @libdir@/psemu/
 
 lib_LTLIBRARIES = libBladeSio1.la
 
