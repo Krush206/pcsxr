@@ -24,6 +24,9 @@
 
 #include "Linux.h"
 
+char cfgfile[MAXPATHLEN];	/* ADB Comment this out - make a local var, or at least use gchar funcs */
+char cfgfile_basename[MAXPATHLEN];	/* ADB Comment this out - make a local var, or at least use gchar funcs */
+
 /* TODO escaping/unescaping would be nice, as would maxchars */
 static void GetValue(char *src, char *name, char *outvar) {
 	char *tmp;
