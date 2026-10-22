@@ -47,7 +47,7 @@ void on_about_clicked (GtkWidget *widget, gpointer user_data)
 
 void OnConfigClose(GtkWidget *widget, gpointer user_data)
 {
-	gtk_widget_destroy(gtk_builder_get_object(builder, "CfgWnd"));
+	gtk_widget_destroy(GTK_WIDGET(gtk_builder_get_object(builder, "CfgWnd")));
 	exit(0);
 }
 
@@ -103,7 +103,7 @@ int main(int argc, char *argv[])
 			return 0;
 		}
 		
-		MainWindow = gtk_builder_get_object(builder, "CfgWnd");
+		MainWindow = GTK_WIDGET(gtk_builder_get_object(builder, "CfgWnd"));
 
 		strcpy(cfg, CONFIG_FILENAME);
 
@@ -222,11 +222,11 @@ int main(int argc, char *argv[])
 		if (pB)
 			free(pB);
 
-		widget = gtk_builder_get_object(builder, "CfgWnd");
+		widget = GTK_WIDGET(gtk_builder_get_object(builder, "CfgWnd"));
 		g_signal_connect_data(G_OBJECT(widget), "destroy",
 			G_CALLBACK(SaveConfig), builder, NULL, 0);
 
-		widget = gtk_builder_get_object(builder, "btn_close");
+		widget = GTK_WIDGET(gtk_builder_get_object(builder, "btn_close"));
 		g_signal_connect_data(G_OBJECT(widget), "clicked",
 			G_CALLBACK(OnConfigClose), builder, NULL, G_CONNECT_AFTER);
 
