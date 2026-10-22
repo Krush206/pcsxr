@@ -111,12 +111,14 @@ static void ScanPlugins(gchar* scandir) {
 			} else {
 				/* Create a symlink from this file to the directory ~/.pcsxr/plugin */
 				linkname = g_build_filename (getenv("HOME"), PLUGINS_DIR, ent->d_name, NULL);
+				unlink(linkname);
 				symlink(filename, linkname);
 
 				/* If it's a config tool, make one in the cfg dir as well.
 				   This allows plugins with retarded cfg finding to work :- ) */
 				if (match(filename, "cfg.*") == 1) {
 					linkname = g_build_filename (getenv("HOME"), PLUGINS_CFG_DIR, ent->d_name, NULL);
+					unlink(linkname);
 					symlink(filename, linkname);
 				}
 				g_free (linkname);
@@ -147,6 +149,7 @@ static void ScanBios(gchar* scandir) {
 			} else {
 				/* Create a symlink from this file to the directory ~/.pcsxr/plugin */
 				linkname = g_build_filename(getenv("HOME"), BIOS_DIR, ent->d_name, NULL);
+				unlink(linkname);
 				symlink(filename, linkname);
 
 				g_free(linkname);
