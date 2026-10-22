@@ -61,7 +61,7 @@ NEWSYM i386_shl10idiv
 	mov esp, ebp
 	pop ebp
 	ret
-%ifidn __OUTPUT_FORMAT__,elf
+%ifidn __OUTPUT_FORMAT__,elf32
 section .note.GNU-stack noalloc noexec nowrite progbits
 %endif
 
