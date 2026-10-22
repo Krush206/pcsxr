@@ -31,6 +31,8 @@ void AboutDlgProc();
 void ConfDlgProc();
 #else
 #include <sys/stat.h>
+#include <sys/wait.h>
+#include <unistd.h>
 #endif
 
 #include "typedefs.h"
@@ -51,8 +53,6 @@ static const unsigned char revision = 1;
 static const unsigned char build	= 1;
 
 static void (CALLBACK *irqCallback)() = 0;
-
-Settings settings;
 
 /* sio status flags.
  */
