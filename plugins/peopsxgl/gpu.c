@@ -1091,7 +1091,7 @@ long GPUopen(unsigned long * disp,char * CapText,char * CfgFile)
 #if defined (_MACGL)
    *disp = display;
 #else
-   *disp=(unsigned long *)display;                       // return display ID to main emu
+   *disp=(unsigned long)display;                       // return display ID to main emu
 #endif
   }
 
