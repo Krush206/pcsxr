@@ -1,7 +1,7 @@
 AM_CPPFLAGS = -I../../include
 
-bindir = @libdir@/games/psemu/
-libdir = @libdir@/games/psemu/
+bindir = @libdir@/psemu/
+libdir = @libdir@/psemu/
 
 lib_LTLIBRARIES = libDFSound.la
 
