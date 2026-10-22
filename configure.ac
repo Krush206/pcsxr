@@ -236,6 +236,22 @@ elif test "x$DYNARECSEL" = xx86_64; then
 	dnl CFLAGS+=" -m64 "
 	dnl AC_COMPILE_IFELSE(AC_LANG_PROGRAM,,AC_MSG_ERROR([Cannot compile with -m64])) 
 	AC_MSG_RESULT([Dynamic Recompiler selected: x86_64])
+
+	dnl The x86_64 dynamic recompiler reserves RAX as a scratch register
+	dnl inside the emitter (X86_TEMP) while several recompiler functions
+	dnl also use EAX as an operand.  This only works while statically
+	dnl allocated globals such as psxRegs stay below the 4GB boundary.
+	dnl PIE executables are mapped above 4GB, which trips an assertion
+	dnl in MEMADDR_OP (or worse, silently clobbers the operand), so link
+	dnl the executable non-PIE like downstream distributions do
+	dnl (cf. Debian pcsxr 1.9.94, hardening=+all,-pie).
+	AC_MSG_CHECKING([whether the linker accepts -no-pie])
+	saved_LDFLAGS="$LDFLAGS"
+	LDFLAGS="$LDFLAGS -no-pie"
+	AC_LINK_IFELSE([AC_LANG_PROGRAM([], [])],
+		[AC_MSG_RESULT([yes])],
+		[LDFLAGS="$saved_LDFLAGS"
+		AC_MSG_RESULT([no])])
 elif test "x$DYNARECSEL" = xppc; then
 	AC_DEFINE([__ppc__], [1], [Define if we are compiling for powerpc architectures.])
 	AM_CONDITIONAL(ARCH_PPC, true)
