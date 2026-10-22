@@ -4,7 +4,7 @@ AM_CPPFLAGS = -DPACKAGE_DATA_DIR=\"${datadir}/pcsxr/\" \
 	$(GTK3_CFLAGS) \
 	-I$(top_srcdir)/libpcsxcore -I$(top_srcdir)/include \
 	-DPSEMU_DATA_DIR=\"${datadir}/psemu\" \
-	-DDEF_PLUGIN_DIR=\"${libdir}/games/psemu\"
+	-DDEF_PLUGIN_DIR=\"${libdir}/psemu\"
 
 bin_PROGRAMS = pcsxr
 
