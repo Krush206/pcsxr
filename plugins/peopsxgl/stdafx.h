@@ -62,6 +62,7 @@
 #include <unistd.h>
 #include <sys/stat.h>
 #include <sys/time.h>
+#include <sys/wait.h>
 #include <GL/gl.h>
 #include <GL/glx.h>
 #include <math.h> 
