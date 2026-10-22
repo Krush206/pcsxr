@@ -51,6 +51,7 @@
 #define RRand(range) (random()%range)  
 #include <string.h> 
 #include <sys/time.h>  
+#include <sys/wait.h>
 #include <math.h>  
 
 #undef CALLBACK
