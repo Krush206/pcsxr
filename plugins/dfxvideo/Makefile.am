@@ -4,7 +4,7 @@ SUFFIXES = .asm
 
 .asm.lo:
 	$(LIBTOOL) --tag=CC --mode=compile \
-	$(STRIP_FPIC) $(NASM) -f elf -d ELF -I${srcdir}/ $<
+	$(STRIP_FPIC) $(NASM) -f elf32 -d ELF -I${srcdir}/ $<
 
 AM_CPPFLAGS = -DLOCALE_DIR=\"${datadir}/locale/\" \
 	-DDATADIR=\"${datadir}/psemu/\" \
@@ -12,8 +12,8 @@ AM_CPPFLAGS = -DLOCALE_DIR=\"${datadir}/locale/\" \
 	-I../../libpcsxcore \
 	-I../../include
 
-bindir = @libdir@/games/psemu/
-libdir = @libdir@/games/psemu/
+bindir = @libdir@/psemu/
+libdir = @libdir@/psemu/
 
 lib_LTLIBRARIES = libDFXVideo.la
 
