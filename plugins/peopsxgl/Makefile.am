@@ -4,8 +4,8 @@ AM_CPPFLAGS = -DPIXMAPDIR=\"${datadir}/pixmaps/\" \
 	$(GTK3_CFLAGS) \
 	-I../../libpcsxcore -I../../include
 
-bindir = @libdir@/games/psemu/
-libdir = @libdir@/games/psemu/
+bindir = @libdir@/psemu/
+libdir = @libdir@/psemu/
 
 lib_LTLIBRARIES = libpeopsxgl.la
 
