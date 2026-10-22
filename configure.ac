@@ -216,12 +216,10 @@ else
 fi
 
 if test "x$DYNARECSEL" = xauto; then
-	if expr x"$build_cpu" : 'xi.86' > /dev/null; then
+	if expr x"$host_cpu" : 'xi.86' > /dev/null; then
 		DYNARECSEL="x86"
-	elif expr x"$build_cpu" : 'xx86_64' > /dev/null; then
+	elif expr x"$host_cpu" : 'xx86_64' > /dev/null; then
 		DYNARECSEL="x86_64"
-	elif expr x"$build_cpu" : 'xpowerpc' > /dev/null; then
-		DYNARECSEL="ppc"
 	fi
 fi
 
