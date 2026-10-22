@@ -46,10 +46,10 @@ void InitKeyboard() {
     resumeScrSaver = 0;
     if (g.cfg.PreventScrSaver) {
         char buf[64];
-        snprintf(buf, 64, "xdg-screensaver suspend 0x%x > /dev/null 2>&1", window);
+        snprintf(buf, 64, "xdg-screensaver suspend 0x%lx > /dev/null 2>&1", window);
         if (pclose(popen(buf, "r")) == 0) {
             resumeScrSaver = 1;
-            printf("Suspending Window ID 0x%x of activating screensaver.\n", window);
+            printf("Suspending Window ID 0x%lx of activating screensaver.\n", window);
         } else {
             //resumeScrSaver = 0;
             fprintf(stderr, "Failed to execute xdg-screensaver (maybe not installed?)\n");
@@ -78,8 +78,8 @@ void DestroyKeyboard() {
     // Enable screensaver if it was disabled - this could be in different place
     if (resumeScrSaver) {
         char buf[64];
-        printf("Resuming Window ID 0x%x to activate screensaver.\n", window);
-        snprintf(buf, 64, "xdg-screensaver resume 0x%x", window);
+        printf("Resuming Window ID 0x%lx to activate screensaver.\n", window);
+        snprintf(buf, 64, "xdg-screensaver resume 0x%lx", window);
         FILE *phandle = popen(buf, "r");
         pclose(phandle);
     }
