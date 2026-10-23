@@ -1324,12 +1324,11 @@ static int cdread_2048(FILE *f, unsigned int base, void *dest, int sector)
 	int ret;
 
 	fseek(f, base + sector * 2048, SEEK_SET);
-	ret = fread((char *)dest + 12 * 2, 1, 2048, f);
-
-	// not really necessary, fake mode 2 header
-	memset(cdbuffer, 0, 12 * 2);
-	sec2msf(sector + 2 * 75, (char *)&cdbuffer[12]);
-	cdbuffer[12 + 3] = 1;
+	/* real HW: the controller delivers pure 2048-byte user data
+	 * through the data port - no sync/header bytes.  The data is
+	 * placed at cdbuffer+12 so ISOgetBuffer() (cdbuffer+12) hands
+	 * cdrom.c the user data directly. */
+	ret = fread((char *)cdbuffer + 12, 1, 2048, f);
 
 	return ret;
 }
