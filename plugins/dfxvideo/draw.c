@@ -57,6 +57,7 @@ int xv_depth = 0;
 int yuv_port = -1;
 int yuv_id = -1;
 int use_yuv = 0;
+int yuv_planar = 0;
 int xv_vsync = 0;
 
 XShmSegmentInfo shminfo;
@@ -1039,6 +1040,7 @@ void CreateDisplay(void)
   depth = DefaultDepth(display, myscreen);
 
   for (i = 0; i < p_num_adaptors; i++) {
+	int planar_port = -1, planar_id = -1;
 	p_num_ports = ai[i].base_id + ai[i].num_ports;
 	for (p = ai[i].base_id; p < p_num_ports; p++) {
 		fo = XvListImageFormats(display, p, &formats);
@@ -1054,6 +1056,15 @@ void CreateDisplay(void)
 			{
 				yuv_port = p;
 				yuv_id = fo[j].id;
+			}
+			// planar 4:2:0 modes (YV12/I420) are all that is left on modern
+			// Xorg drivers (e.g. GLAMOR Textured Video), use them if no
+			// packed mode exists
+			if ( fo[j].type == XvYUV && fo[j].num_planes == 3 &&
+			     ( fo[j].id == 0x32315659 /* YV12 */ || fo[j].id == 0x30323449 /* I420 */ ) )
+			{
+				planar_port = p;
+				planar_id = fo[j].id;
 			}
 			if (fo[j].type == XvRGB && fo[j].bits_per_pixel == 32)
 			{
@@ -1075,6 +1086,13 @@ void CreateDisplay(void)
 		}
 		if (fo)
 			XFree(fo);
+	}
+	// prefer packed modes, fall back to planar
+	if (yuv_port == -1 && planar_port != -1) {
+		yuv_port = planar_port;
+		yuv_id = planar_id;
+		yuv_planar = 1;
+		printf("Planar YUV mode found.  id: %x\n", yuv_id);
 	}
   }
   if (p_num_adaptors > 0)
@@ -1312,14 +1330,21 @@ if (!myvisual)
  uint32_t color;
 
  /* fix the green back ground in YUV mode */
- if(use_yuv)
+ if(use_yuv && !yuv_planar)
 	 color = rgb_to_yuv(0x00, 0x00, 0x00);
  else
 	 color = 0;
 
  Xpixels = (char *)malloc(8*8*4);
- for(i = 0; i < 8*8; ++i)
-	 ((uint32_t *)Xpixels)[i] = color;
+ if(use_yuv && yuv_planar) {
+	 /* 8x8 4:2:0 YV12/I420 image: Y plane (black in limited range is 16),
+	    followed by the two chroma planes (neutral 128) */
+	 memset(Xpixels, 16, 8*8);
+	 memset(Xpixels + 8*8, 128, 8*4);
+ } else {
+	 for(i = 0; i < 8*8; ++i)
+		 ((uint32_t *)Xpixels)[i] = color;
+ }
 
  XCimage = XvCreateImage(display,xv_port,xv_id,
                       (char *)Xpixels, 8, 8);
@@ -1342,9 +1367,14 @@ shminfo.readOnly = 0;
  }
 
  {
-   uint32_t *pShmaddr = (uint32_t *)shminfo.shmaddr;
-   for(i = 0; i < 640*512*3*3; ++i)
+   if(use_yuv && yuv_planar) {
+     memset(shminfo.shmaddr, 16, 640*512);
+     memset((char *)shminfo.shmaddr + 640*512, 128, (size_t)640*512*4*3*3 - 640*512);
+   } else {
+     uint32_t *pShmaddr = (uint32_t *)shminfo.shmaddr;
+     for(i = 0; i < 640*512*3*3; ++i)
 	 pShmaddr[i] = color;
+   }
  }
 }
 
@@ -1512,6 +1542,135 @@ void BlitToYUV(unsigned char * surf,int32_t x,int32_t y)
   }
 }
 
+// read one pixel from the psx vram framebuffer at vram coords (vr, vc);
+// x is the horizontal display offset (in 16bit units) used for 24bit modes
+static __inline void GetPSXPixel(int vr, int vc, int x, int *R, int *G, int *B)
+{
+	if (PSXDisplay.RGB24) {
+		uint32_t lu = *((uint32_t *)((unsigned char *)psxVuw + (size_t)2 * (1024 * vr + x) + (size_t)3 * (vc - x)));
+		*R = RED(lu);
+		*G = GREEN(lu);
+		*B = BLUE(lu);
+	} else {
+		unsigned short s = GETLE16(&psxVuw[1024 * vr + vc]);
+		*R = (s << 3) & 0xf8;
+		*G = (s >> 2) & 0xf8;
+		*B = (s >> 7) & 0xf8;
+	}
+}
+
+// same conversion as rgb_to_yuv(), but returns the Y/U/V components
+static void rgb_to_yuv_comp(uint8_t R, uint8_t G, uint8_t B, uint8_t *Y, uint8_t *U, uint8_t *V)
+{
+	*Y = min(abs(R * 2104 + G * 4130 + B * 802 + 4096 + 131072) >> 13, 235);
+	*U = min(abs(R * -1214 + G * -2384 + B * 3598 + 4096 + 1048576) >> 13, 240);
+	*V = min(abs(R * 3598 + G * -3013 + B * -585 + 4096 + 1048576) >> 13, 240);
+}
+
+void BlitToYUVPlanar(unsigned char * surf,int32_t x,int32_t y)
+{
+ unsigned short row,column;
+ unsigned short dx = PreviousPSXDisplay.Range.x1;
+ unsigned short dy = PreviousPSXDisplay.DisplayMode.y - PreviousPSXDisplay.Range.y0;
+ int R,G,B;
+ int w = PSXDisplay.DisplayMode.x;
+ int h = PSXDisplay.DisplayMode.y;
+ int top = PreviousPSXDisplay.Range.y0 >> 1;
+ int left = PreviousPSXDisplay.Range.x0;
+ unsigned char *yp = surf;
+ unsigned char *up, *vp;
+
+ if (yuv_id == 0x32315659) { // YV12: V plane first
+ 	vp = surf + (size_t)w * h;
+ 	up = vp + (size_t)(w / 2) * (h / 2);
+ } else { // I420: U plane first
+ 	up = surf + (size_t)w * h;
+ 	vp = up + (size_t)(w / 2) * (h / 2);
+ }
+
+ // luma plane; rows/columns outside the visible display range are
+ // centered with neutral grey
+ for (row = 0; row < h; row++) {
+ 	for (column = 0; column < w; column++) {
+ 		uint8_t Y, U, V;
+ 		if (row < top || row >= top + dy || column < left || column >= left + dx) {
+ 			yp[(size_t)row * w + column] = 128;
+ 			continue;
+ 		}
+ 		GetPSXPixel(y + (row - top), x + (column - left), x, &R, &G, &B);
+ 		rgb_to_yuv_comp(R, G, B, &Y, &U, &V);
+ 		yp[(size_t)row * w + column] = Y;
+ 	}
+ }
+
+ // chroma planes, 2x2 subsampled with averaging
+ for (row = 0; row < h / 2; row++) {
+ 	for (column = 0; column < w / 2; column++) {
+ 		int r, c, Us = 0, Vs = 0, cnt = 0;
+ 		for (r = 0; r < 2; r++) {
+ 			for (c = 0; c < 2; c++) {
+ 				int fr = row * 2 + r, fc = column * 2 + c;
+ 				uint8_t Y, U, V;
+ 				if (fr < top || fr >= top + dy || fc < left || fc >= left + dx) {
+ 					Us += 128; Vs += 128;
+ 				} else {
+ 					GetPSXPixel(y + (fr - top), x + (fc - left), x, &R, &G, &B);
+ 					rgb_to_yuv_comp(R, G, B, &Y, &U, &V);
+ 					Us += U; Vs += V;
+ 				}
+ 				cnt++;
+ 			}
+ 		}
+ 		up[(size_t)row * (w / 2) + column] = Us / cnt;
+ 		vp[(size_t)row * (w / 2) + column] = Vs / cnt;
+ 	}
+ }
+}
+
+// planar variant of RGB2YUV(); src is a 32bpp buffer, dst a 4:2:0 plane set
+void RGB2YUV_Planar(uint32_t *s, int width, int height, unsigned char *dst)
+{
+	int x,y;
+	int R,G,B;
+	unsigned char *yp = dst;
+	unsigned char *up, *vp;
+
+	if (yuv_id == 0x32315659) { // YV12: V plane first
+		vp = dst + (size_t)width * height;
+		up = vp + (size_t)(width / 2) * (height / 2);
+	} else { // I420: U plane first
+		up = dst + (size_t)width * height;
+		vp = up + (size_t)(width / 2) * (height / 2);
+	}
+
+	for (y = 0; y < height; y++) {
+		for(x = 0; x < width; x++) {
+			uint32_t lu = s[(size_t)y * width + x];
+			uint8_t Y, U, V;
+
+			R = (lu >> 16) & 0xff;
+			G = (lu >> 8) & 0xff;
+			B = lu & 0xff;
+			rgb_to_yuv_comp(R, G, B, &Y, &U, &V);
+			yp[(size_t)y * width + x] = Y;
+
+			if ((y & 1) == 0 && (x & 1) == 0) {
+				// average the four pixels of the 2x2 block
+				int r = R, g = G, b = B, cnt = 1;
+				if (x + 1 < width) { lu = s[(size_t)y * width + x + 1]; r += (lu >> 16) & 0xff; g += (lu >> 8) & 0xff; b += lu & 0xff; cnt++; }
+				if (y + 1 < height) {
+					lu = s[(size_t)(y + 1) * width + x];
+					r += (lu >> 16) & 0xff; g += (lu >> 8) & 0xff; b += lu & 0xff; cnt++;
+					if (x + 1 < width) { lu = s[(size_t)(y + 1) * width + x + 1]; r += (lu >> 16) & 0xff; g += (lu >> 8) & 0xff; b += lu & 0xff; cnt++; }
+				}
+				rgb_to_yuv_comp(r / cnt, g / cnt, b / cnt, &Y, &U, &V);
+				up[(size_t)(y / 2) * (width / 2) + (x / 2)] = U;
+				vp[(size_t)(y / 2) * (width / 2) + (x / 2)] = V;
+			}
+		}
+	}
+}
+
 //dst will have half the pitch (32bit to 16bit)
 void RGB2YUV(uint32_t *s, int width, int height, uint32_t *d)
 {
@@ -1588,16 +1747,47 @@ void DoBufferSwap(void)
 	if (finalw == 0 || finalh == 0)
 		return;
 
+	/* guard against degenerate display modes: the back buffer surface is
+	   limited to 640x512 (see PreviousPSXDisplay.DisplayMode clamping and
+	   the shm allocation), and oversized Xv images would only make the
+	   X server kill us with BadAccess (e.g. the PSXLinux console driver
+	   transiently reports a negative height while reprogramming the GPU) */
+	if (finalw < 16 || finalh < 16 || finalw > 640 || finalh > 512) {
+		static int lw = -1, lh = -1;
+		if (finalw != lw || finalh != lh) {
+			printf("dfxvideo: ignoring degenerate display mode %dx%d\n", finalw, finalh);
+			lw = finalw;
+			lh = finalh;
+		}
+		return;
+	}
+	if (yuv_planar && (finalw & 1)) {
+		finalw &= ~1;
+	}
+	if (yuv_planar && (finalh & 1)) {
+		finalh &= ~1;
+	}
+
 	XSync(display,False);
 
 	if(use_yuv) {
-		if (iUseNoStretchBlt==0 || finalw > 320 || finalh > 256) {
-			BlitToYUV((unsigned char *)shminfo.shmaddr, PSXDisplay.DisplayPosition.x, PSXDisplay.DisplayPosition.y);
-			finalw <<= 1;
+		if (yuv_planar) {
+			if (iUseNoStretchBlt==0 || finalw > 320 || finalh > 256) {
+				BlitToYUVPlanar((unsigned char *)shminfo.shmaddr, PSXDisplay.DisplayPosition.x, PSXDisplay.DisplayPosition.y);
+			} else {
+				BlitScreen32((unsigned char *)pBackBuffer, PSXDisplay.DisplayPosition.x, PSXDisplay.DisplayPosition.y);
+				p2XSaIFunc(pBackBuffer, finalw<<2, (unsigned char *)pSaIBigBuff,finalw,finalh);
+				RGB2YUV_Planar((uint32_t*)pSaIBigBuff, finalw, finalh, (unsigned char*)shminfo.shmaddr);
+			}
 		} else {
-			BlitScreen32((unsigned char *)pBackBuffer, PSXDisplay.DisplayPosition.x, PSXDisplay.DisplayPosition.y);
-			p2XSaIFunc(pBackBuffer, finalw<<2, (unsigned char *)pSaIBigBuff,finalw,finalh);
-			RGB2YUV( (uint32_t*)pSaIBigBuff, finalw, finalh, (uint32_t*)shminfo.shmaddr);
+			if (iUseNoStretchBlt==0 || finalw > 320 || finalh > 256) {
+				BlitToYUV((unsigned char *)shminfo.shmaddr, PSXDisplay.DisplayPosition.x, PSXDisplay.DisplayPosition.y);
+				finalw <<= 1;
+			} else {
+				BlitScreen32((unsigned char *)pBackBuffer, PSXDisplay.DisplayPosition.x, PSXDisplay.DisplayPosition.y);
+				p2XSaIFunc(pBackBuffer, finalw<<2, (unsigned char *)pSaIBigBuff,finalw,finalh);
+				RGB2YUV( (uint32_t*)pSaIBigBuff, finalw, finalh, (uint32_t*)shminfo.shmaddr);
+			}
 		}
 	} else if(iUseNoStretchBlt==0 || finalw > 320 || finalh > 256) {
 		BlitScreen32((unsigned char *)shminfo.shmaddr, PSXDisplay.DisplayPosition.x, PSXDisplay.DisplayPosition.y);
