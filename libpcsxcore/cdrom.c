@@ -616,6 +616,9 @@ void cdrInterrupt() {
 
 	// Reschedule IRQ
 	if (cdr.Stat) {
+#ifdef CDR_LOG
+		CDR_LOG("cdrInterrupt: resched cmd %02x, Stat=%02x\n", Irq, cdr.Stat);
+#endif
 		CDR_INT( 0x100 );
 		return;
 	}
@@ -809,10 +812,18 @@ void cdrInterrupt() {
 			AddIrqQueue(CdlInit + 0x100, cdReadTime * 6);
 			no_busy_error = 1;
 			start_rotating = 1;
+			/* the guest's Init makes the drive ready: without this
+			 * the not-ready gate below answers every later command
+			 * with DiskError (real HW readies the drive on Init).
+			 * Also cancel any pending lid/rescan timer so the
+			 * shell-open state machine cannot override this. */
+			psxRegs.interrupt &= ~(1 << PSXINT_CDRLID);
+			cdr.DriveState = DRIVESTATE_STANDBY;
 			break;
 
 		case CdlInit + 0x100:
 			cdr.Stat = Complete;
+			no_busy_error = 1;
 			break;
 
 		case CdlMute:
@@ -1140,6 +1151,10 @@ void cdrReadInterrupt() {
 	if (!cdr.Reading)
 		return;
 
+#ifdef CDR_LOG
+	CDR_LOG("cdrReadInterrupt: Reading=1 Irq=%02x Stat=%02x\n",
+		cdr.Irq, cdr.Stat);
+#endif
 	if (cdr.Irq || cdr.Stat) {
 		CDREAD_INT(0x100);
 		return;
@@ -1179,6 +1194,11 @@ void cdrReadInterrupt() {
 	}
 
 	memcpy(cdr.Transfer, buf, DATA_SIZE);
+	/* sector data is available now: re-arm the data port at index 0 so
+	 * the driver's BFRD request yields pure user data at offset 0,
+	 * independent of any mode-dependent header shift */
+	cdr.Readed = 1;
+	cdr.transferIndex = 0;
 	CheckPPFCache(cdr.Transfer, cdr.Prev[0], cdr.Prev[1], cdr.Prev[2]);
 
 #ifdef CDR_LOG
@@ -1305,6 +1325,13 @@ void cdrWrite1(unsigned char rt) {
 
 	cdr.Cmd = rt;
 	cdr.OCUP = 0;
+	/* a new command invalidates any pending sector data; the next
+	 * data-ready delivery re-arms it at index 0 */
+	cdr.Readed = 0;
+#ifdef CDR_LOG
+	CDR_LOG("cdrWrite1: cmd %02x Ctrl=%02x Stat=%02x Irq=%02x\n",
+		rt, cdr.Ctrl, cdr.Stat, cdr.Irq);
+#endif
 
 #ifdef CDR_LOG_IO
 	CDR_LOG_IO("CD1 write: %x (%s)", rt, CmdName[rt]);
@@ -1405,6 +1432,8 @@ void cdrWrite2(unsigned char rt) {
 }
 
 unsigned char cdrRead3(void) {
+	/* bank 1/3 = HINTSTS (Stat), bank 0/2 = HINTMSK (psx-spx); the
+	 * mask value is what HINTMSK writes (1802 bank1) stored in Reg2 */
 	if (cdr.Ctrl & 0x1)
 		psxHu8(0x1803) = cdr.Stat | 0xE0;
 	else
@@ -1449,8 +1478,13 @@ void cdrWrite3(unsigned char rt) {
 
 		switch (cdr.Mode & (MODE_SIZE_2340|MODE_SIZE_2328)) {
 			case MODE_SIZE_2328:
-			case MODE_SIZE_2048:
 				cdr.transferIndex += 12;
+				break;
+
+			case MODE_SIZE_2048:
+				/* 2048-byte images deliver pure user data
+				 * (real HW: no header in the data port) */
+				cdr.transferIndex += 0;
 				break;
 
 			case MODE_SIZE_2340:
