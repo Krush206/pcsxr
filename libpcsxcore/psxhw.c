@@ -143,6 +143,9 @@ u16 psxHwRead16(u32 add) {
 			SIO1_LOG("sio1 read16 %x; ret = %x\n", add&0xf, hard);
 #endif
 			return hard;
+#else
+		case 0x1f801054:
+			return sioReadStat16();
 #endif
 		case 0x1f801100:
 			hard = psxRcntRcount(0);
@@ -384,6 +387,7 @@ u32 psxHwRead32(u32 add) {
 void psxHwWrite8(u32 add, u8 value) {
 	switch (add) {
 		case 0x1f801040: sioWrite8(value); break;
+		case 0x1f801050: sio_console_write(value); break;
 #ifdef ENABLE_SIO1API
 		case 0x1f801050: SIO1_writeData8(value); break;
 #endif
