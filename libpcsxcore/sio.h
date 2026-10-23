@@ -36,6 +36,7 @@ extern "C" {
 extern char Mcd1Data[MCD_SIZE], Mcd2Data[MCD_SIZE];
 
 void sioWrite8(unsigned char value);
+void sio_console_write(unsigned char value);
 void sioWriteStat16(unsigned short value);
 void sioWriteMode16(unsigned short value);
 void sioWriteCtrl16(unsigned short value);
