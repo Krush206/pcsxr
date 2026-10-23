@@ -22,6 +22,7 @@
 */
 
 #include "sio.h"
+#include <stdio.h>
 #include <sys/stat.h>
 
 // Status Flags
@@ -139,7 +140,26 @@ unsigned char reverse_8( unsigned char bits )
 }
 
 
+/* SIO1 (0x1f801050) is the guest's serial console.  Console bytes
+ * must never pass through the pad/memcard state machine above, or
+ * output written between a game's pad writes corrupts the transfer
+ * (phantom buttons) and pad command bytes get echoed as console
+ * output. */
+void sio_console_write(unsigned char value) {
+	putchar(value);
+	fflush(stdout);
+}
+
 void sioWrite8(unsigned char value) {
+	/* If not in pad/memcard protocol, treat as serial console output.
+	 * The pad (0x01) and memcard (0x81) start tokens must fall
+	 * through to the protocol state machine below even though no
+	 * transfer is active yet, or pad polling can never begin. */
+	if (padst == 0 && mcdst == 0 && value != 0x01 && value != 0x81) {
+		putchar(value);
+		fflush(stdout);
+		return;
+	}
 #ifdef PAD_LOG
 	PAD_LOG("sio write8 %x\n", value);
 #endif
